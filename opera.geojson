@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "opera",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "fid": 1 }, "geometry": { "type": "Point", "coordinates": [ 24.02638535, 49.84353156 ] } },
+{ "type": "Feature", "properties": { "fid": 2 }, "geometry": { "type": "Point", "coordinates": [ 24.02663439, 49.84359468 ] } }
+]
+}

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Підсвітити ліхтар</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { margin: 0; padding: 0; background-color: #000; font-family: 'Manrope', sans-serif; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
+        
+        /* --- NAVBAR (Ваш стандартний) --- */
+        .navbar {
+            position: fixed; top: 0; left: 0; width: 100%; height: 80px;
+            background-color: #000; display: flex; align-items: center; padding: 0 40px;
+            box-sizing: border-box; z-index: 100;
+        }
+        .nav-links a, .nav-lang a { color: #fff; text-decoration: none; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; transition: opacity 0.3s; }
+        .nav-links a:hover, .nav-lang a:hover { opacity: 0.7; }
+        .logo-img { height: 40px; width: auto; margin-right: 15px; display: block; }
+        .logo-mobile { display: none; } 
+        .logo-desktop { display: block; }
+        .nav-group-links { display: flex; gap: 30px; }
+        .nav-logo-container { display: flex; }
+
+        @media (min-width: 769px) {
+            .navbar { justify-content: space-between; }
+            .nav-group-links { order: 1; }
+            .nav-logo-container { order: 2; margin-right: 200px; }
+            .nav-lang { order: 3; }
+        }
+        @media (max-width: 768px) {
+            .navbar { height: 70px; padding: 0 20px; }
+            .nav-logo-container { position: relative; z-index: 2; }
+            .nav-group-links {
+                position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+                gap: 20px; width: 100%; justify-content: center; z-index: 1;
+            }
+            .nav-links a { font-size: 12px; }
+            .nav-lang { display: none; }
+            .logo-desktop { display: none !important; } 
+            .logo-mobile { display: block !important; height: 30px; } 
+        }
+
+        /* --- КНОПКИ (СІТКА 9 ШТ) --- */
+        .controls {
+            position: absolute;
+            bottom: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 40px;
+            border: 1px solid #333;
+            z-index: 10;
+            width: fit-content;
+            max-width: 95%;
+            
+            display: grid;
+            /* На ПК: 9 кнопок в один рядок або 2 рядки, тут зробимо гнучко */
+            display: flex; 
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .layer-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'Manrope', sans-serif;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            min-width: 80px; /* Фіксована ширина для гарного вигляду */
+        }
+        .layer-btn:hover { border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
+        
+        /* Активний стан кнопки - колір тексту буде підтягуватись через JS */
+        .layer-btn.active {
+            background: #fff; color: #000; font-weight: bold;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+            border-color: #fff;
+        }
+
+        /* --- ІНФО ВІКНО --- */
+        .info-popup {
+            position: absolute;
+            bottom: 120px; /* Базова висота для ПК */
+            left: 50%; transform: translateX(-50%);
+            background: #fff;
+            color: #000;
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 16px; font-weight: 500;
+            text-align: center;
+            z-index: 10;
+            min-width: 300px;
+            opacity: 0; transition: opacity 0.3s ease; display: none;
+            pointer-events: none; /* Щоб крізь нього можна було клікати карту, якщо треба */
+        }
+        .info-popup.visible { display: block; opacity: 1; }
+
+        /* --- МОБІЛЬНА АДАПТАЦІЯ --- */
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 30px;
+                width: 90%;
+                display: grid;
+                /* Сітка 3 колонки на 3 рядки = 9 кнопок */
+                grid-template-columns: 1fr 1fr 1fr; 
+                gap: 8px;
+                padding: 15px;
+                border-radius: 25px;
+            }
+            .layer-btn {
+                width: 100%;
+                font-size: 12px;
+                padding: 10px 5px;
+                border-radius: 12px;
+            }
+            .info-popup {
+                bottom: 210px; /* Піднімаємо вище, бо блок кнопок став високим */
+                width: 85%;
+                font-size: 14px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-group-links nav-links">
+        <a href="#">ІСТОРІЯ</a>
+        <a href="#">РОЗВИТОК</a>
+        <a href="#">ПРО НАС</a>
+    </div>
+    <a href="#" class="nav-logo-container nav-logo">
+        <img src="./logo.png" alt="Лого" class="logo-img logo-desktop">
+        <img src="./logo2.png" alt="Лого" class="logo-img logo-mobile">
+    </a>
+    <div class="nav-lang"><a href="#">UA/EN</a></div>
+</nav>
+
+<div id="map"></div>
+
+<div id="layer-info" class="info-popup">Опис шару</div>
+
+<div class="controls" id="controls-box">
+    </div>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibHZpdiIsImEiOiJjbWl4MXQ0dG4wMmRoM2VzNzZvMzlmODVmIn0.FpjKdCBZR8neb-2imEu-xA'; // Ваш токен
+
+    const isMobile = window.innerWidth < 768;
+    
+    // --- НАЛАШТУВАННЯ 9 ШАРІВ ---
+    // Тут ви задаєте: id, назву кнопки, колір "неону", файл даних та текст опису
+    const layersConfig = [
+        { id: 'l1', name: 'Надвисокий', color: '#FFD700', file: './ultra.geojson', text: 'Тепле золото (2200K). Паркові алеї.' },
+        { id: 'l2', name: 'Політехнічний', color: '#FFB900', file: './poli.geojson', text: 'Бурштин (2400K). Пішохідні доріжки.' },
+        { id: 'l3', name: 'Ринковий', color: '#FF8C00', file: './runok.geojson', text: 'Насичений оранж. Акцентне підсвічування.' },
+        { id: 'l4', name: 'Оперний', color: '#FF6D00', file: './opera.geojson', text: 'Вечірній захід сонця. Історичні фасади.' },
+        { id: 'l5', name: 'Франца', color: '#FF4500', file: './fran.geojson', text: 'Червоне тепло. Сигнальні вогні.' },
+        { id: 'l6', name: 'Парковий', color: '#FF6E40', file: './park.geojson', text: 'М’який корал. Житлові квартали.' },
+        { id: 'l7', name: 'Потоцький', color: '#FFAB40', file: './potocki.geojson', text: 'Світлий оранж. Площі міста.' },
+        { id: 'l8', name: 'Стометровий', color: '#FFC400', file: './sto.geojson', text: 'Яскравий жовтий. Магістральні розв’язки.' },
+    ];
+
+    // Генерація кнопок в HTML
+    const controlsContainer = document.getElementById('controls-box');
+    layersConfig.forEach((layer, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'layer-btn';
+        btn.innerText = layer.name;
+        btn.onclick = () => activateLayer(index);
+        controlsContainer.appendChild(btn);
+    });
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: { "version": 8, "name": "Dark", "sources": {}, "layers": [{ "id": "bg", "type": "background", "paint": { "background-color": "#050505" } }] }, // Майже чорний фон
+        center: [24.0311, 49.8429],
+        zoom: isMobile ? 12 : 14,
+        pitch: isMobile ? 40 : 50,
+        bearing: 0,
+        antialias: true
+    });
+
+    map.on('load', () => {
+        
+        // --- 1. ФОНОВІ ШАРИ (ТЕМНІ, НЕАКТИВНІ) ---
+        // Дороги (темно-сірі лінії)
+        map.addSource('bg-roads', { type: 'geojson', data: './roads.json.geojson' }); // Ваш файл доріг
+        map.addLayer({
+            'id': 'bg-roads-layer', 'type': 'line', 'source': 'bg-roads',
+            'paint': { 
+                'line-color': '#1a1a1a', // Дуже темний сірий
+                'line-width': isMobile ? 1 : 2, 
+                'line-opacity': 0.6 
+            }
+        });
+
+        // Будинки (темні силуети)
+        map.addSource('bg-buildings', { type: 'geojson', data: './historical2.geojson' }); // Ваш файл будинків
+        map.addLayer({
+            'id': 'bg-buildings-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings',
+            'paint': {
+                'fill-extrusion-color': '#111', // Майже чорний
+                'fill-extrusion-height': 15,    // Висота є, але вона "в тіні"
+                'fill-extrusion-opacity': 0.8
+            }
+        });
+        map.addSource('bg-buildings2', { type: 'geojson', data: './historical3.geojson' }); // Ваш файл будинків
+        map.addLayer({
+            'id': 'bg-buildings2-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings2',
+            'paint': {
+                'fill-extrusion-color': '#111', // Майже чорний
+                'fill-extrusion-height': 15,    // Висота є, але вона "в тіні"
+                'fill-extrusion-opacity': 0.8
+            }
+        });
+
+        // --- 2. ШАРИ ТОЧОК (НЕОН) ---
+        layersConfig.forEach(layer => {
+            map.addSource(layer.id, { type: 'geojson', data: layer.file });
+            
+            map.addLayer({
+                'id': layer.id,
+                'type': 'circle',
+                'source': layer.id,
+                'paint': {
+                    // Базовий радіус (неактивний = малий)
+                    'circle-radius': 3,
+                    // Базовий колір (неактивний = сірий або тьмяний версія кольору)
+                    'circle-color': '#333',
+                    // Прозорість
+                    'circle-opacity': 0.4,
+                    // Розмиття (неактивний = чіткий)
+                    'circle-blur': 0,
+                    
+                    // Анімація переходу
+                    'circle-radius-transition': { duration: 500 },
+                    'circle-color-transition': { duration: 500 },
+                    'circle-blur-transition': { duration: 500 },
+                    'circle-opacity-transition': { duration: 500 }
+                }
+            });
+        });
+
+        // Світло для 3D будинків
+        map.setLight({ anchor: 'viewport', color: '#fff', intensity: 0.2, position: [1.15, 210, 30] });
+    });
+
+    function activateLayer(selectedIndex) {
+        const infoPopup = document.getElementById('layer-info');
+        const buttons = document.querySelectorAll('.layer-btn');
+        const selectedConfig = layersConfig[selectedIndex];
+
+        // 1. Оновлюємо кнопки
+        buttons.forEach((btn, idx) => {
+            if (idx === selectedIndex) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        // 2. Оновлюємо текст (плавна поява)
+        /*infoPopup.classList.remove('visible');
+        setTimeout(() => {
+            infoPopup.textContent = selectedConfig.text;
+            infoPopup.style.display = 'block';
+            
+            // Адаптація ширини попапа під ширину кнопок
+            const controlsBox = document.getElementById('controls-box');
+            if(controlsBox) infoPopup.style.maxWidth = controlsBox.offsetWidth + 'px';
+
+            setTimeout(() => infoPopup.classList.add('visible'), 10);
+        }, 200);
+*/
+        // 3. Логіка "НЕОНУ"
+        layersConfig.forEach((layer, index) => {
+            if (index === selectedIndex) {
+                // АКТИВНИЙ ШАР:
+                // Великий радіус + розмиття = ефект світіння (glow)
+                map.setPaintProperty(layer.id, 'circle-radius', isMobile ? 8 : 12); 
+                map.setPaintProperty(layer.id, 'circle-color', layer.color); // Яскравий колір
+                map.setPaintProperty(layer.id, 'circle-opacity', 1);
+                map.setPaintProperty(layer.id, 'circle-blur', 0.5); // 0.5 = 50% розмиття країв (м'яке світло)
+            } else {
+                // НЕАКТИВНІ ШАРИ:
+                // Маленькі, темні, чіткі
+                map.setPaintProperty(layer.id, 'circle-radius', 3);
+                map.setPaintProperty(layer.id, 'circle-color', '#333');
+                map.setPaintProperty(layer.id, 'circle-opacity', 0.3);
+                map.setPaintProperty(layer.id, 'circle-blur', 0);
+            }
+        });
+    }
+
+</script>
+
+</body>
+</html>
