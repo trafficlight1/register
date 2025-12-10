@@ -184,15 +184,28 @@
         controlsContainer.appendChild(btn);
     });
 
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: { "version": 8, "name": "Dark", "sources": {}, "layers": [{ "id": "bg", "type": "background", "paint": { "background-color": "#050505" } }] }, // Майже чорний фон
-        center: [24.0311, 49.8429],
-        zoom: isMobile ? 12 : 14,
-        pitch: isMobile ? 40 : 50,
-        bearing: 0,
-        antialias: true
-    });
+    const lvivBounds = [
+    [23.9200, 49.7600], // Південний захід (десь біля Сокільників/Скнилова)
+    [24.1200, 49.9000]  // Північний схід (десь біля Дублян/Малехова)
+];
+
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: { 
+        "version": 8, 
+        "name": "Dark", 
+        "sources": {}, 
+        "layers": [{ "id": "bg", "type": "background", "paint": { "background-color": "#050505" } }] 
+    },
+    center: [24.0311, 49.8329],
+    zoom: isMobile ? 12 : 13.5,
+    pitch: isMobile ? 40 : 50,
+    bearing: 0,
+    antialias: true,
+    
+    // ДОДАЄМО ОБМЕЖЕННЯ ТУТ:
+    maxBounds: lvivBounds 
+});
 
     map.on('load', () => {
         
@@ -309,4 +322,5 @@
 </script>
 
 </body>
+
 </html>
