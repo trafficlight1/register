@@ -4,18 +4,21 @@
     <meta charset="utf-8">
     <title>Підсвітити ліхтар</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="icon" type="image/png" href="./logo2.png">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     <style>
         body { margin: 0; padding: 0; background-color: #000; font-family: 'Manrope', sans-serif; overflow: hidden; position: fixed; width: 100%; height: 100%; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
         
-        /* --- NAVBAR (Ваш стандартний) --- */
+        /* --- NAVBAR --- */
         .navbar {
             position: fixed; top: 0; left: 0; width: 100%; height: 80px;
             background-color: #000; display: flex; align-items: center; padding: 0 40px;
@@ -48,24 +51,74 @@
             .logo-mobile { display: block !important; height: 30px; } 
         }
 
-        /* --- КНОПКИ (СІТКА 9 ШТ) --- */
-        .controls {
+        /* --- НОВИЙ КОНТЕЙНЕР ІНТЕРФЕЙСУ --- */
+        .ui-wrapper {
             position: absolute;
-            bottom: 40px; left: 50%; transform: translateX(-50%);
+            bottom: 30px; /* Відступ від низу екрану */
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column; /* Вертикальне вирівнювання */
+            align-items: center;
+            width: 100%;
+            z-index: 20;
+            pointer-events: none; /* Пропускаємо кліки крізь пусте місце на карту */
+        }
+
+        /* --- КНОПКА "ДОСЛІДИТИ" --- */
+        .explore-btn {
+            position: relative; 
+            background-color: #fff;
+            color: #000;
+            padding: 14px 30px;
+            border-radius: 30px;
+            
+            font-family: 'Manrope', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 0.5px;
+            
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            pointer-events: auto; /* Вмикаємо кліки */
+            
+            margin-bottom: 10px; /* Відступ до кнопок шарів */
+            
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .explore-btn.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .explore-btn:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.7);
+        }
+
+        /* --- ПАНЕЛЬ ШАРІВ --- */
+        .controls {
+            position: relative;
             background: rgba(0, 0, 0, 0.85);
             padding: 20px;
             border-radius: 40px;
             border: 1px solid #333;
-            z-index: 10;
             width: fit-content;
             max-width: 95%;
-            
-            display: grid;
-            /* На ПК: 9 кнопок в один рядок або 2 рядки, тут зробимо гнучко */
-            display: flex; 
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+            pointer-events: auto; /* Вмикаємо кліки */
         }
 
         .layer-btn {
@@ -79,42 +132,19 @@
             font-family: 'Manrope', sans-serif;
             text-transform: uppercase;
             transition: all 0.3s ease;
-            min-width: 80px; /* Фіксована ширина для гарного вигляду */
+            min-width: 80px;
         }
-        .layer-btn:hover { border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
-        
-        /* Активний стан кнопки - колір тексту буде підтягуватись через JS */
+        .layer-btn:hover { border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
         .layer-btn.active {
             background: #fff; color: #000; font-weight: bold;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
             border-color: #fff;
         }
 
-        /* --- ІНФО ВІКНО --- */
-        .info-popup {
-            position: absolute;
-            bottom: 120px; /* Базова висота для ПК */
-            left: 50%; transform: translateX(-50%);
-            background: #fff;
-            color: #000;
-            padding: 15px 25px;
-            border-radius: 30px;
-            font-size: 16px; font-weight: 500;
-            text-align: center;
-            z-index: 10;
-            min-width: 300px;
-            opacity: 0; transition: opacity 0.3s ease; display: none;
-            pointer-events: none; /* Щоб крізь нього можна було клікати карту, якщо треба */
-        }
-        .info-popup.visible { display: block; opacity: 1; }
-
-        /* --- МОБІЛЬНА АДАПТАЦІЯ --- */
         @media (max-width: 768px) {
             .controls {
-                bottom: 30px;
                 width: 90%;
                 display: grid;
-                /* Сітка 3 колонки на 3 рядки = 9 кнопок */
                 grid-template-columns: 1fr 1fr 1fr; 
                 gap: 8px;
                 padding: 15px;
@@ -125,12 +155,11 @@
                 font-size: 12px;
                 padding: 10px 5px;
                 border-radius: 12px;
+                min-width: auto;
             }
-            .info-popup {
-                bottom: 210px; /* Піднімаємо вище, бо блок кнопок став високим */
-                width: 85%;
+            .explore-btn {
                 font-size: 14px;
-                padding: 15px;
+                padding: 12px 25px;
             }
         }
     </style>
@@ -139,11 +168,11 @@
 
 <nav class="navbar">
     <div class="nav-group-links nav-links">
-        <a href="#">ІСТОРІЯ</a>
-        <a href="#">РОЗВИТОК</a>
-        <a href="#">ПРО НАС</a>
+        <a href="https://www.pidsvitu.com/history">ІСТОРІЯ</a>
+        <a href="https://www.pidsvitu.com/future">РОЗВИТОК</a>
+        <a href="https://www.pidsvitu.com/about">ДЕТАЛЬНІШЕ</a>
     </div>
-    <a href="#" class="nav-logo-container nav-logo">
+    <a href="https://www.pidsvitu.com/" class="nav-logo-container nav-logo">
         <img src="./logo.png" alt="Лого" class="logo-img logo-desktop">
         <img src="./logo2.png" alt="Лого" class="logo-img logo-mobile">
     </a>
@@ -152,30 +181,73 @@
 
 <div id="map"></div>
 
-<div id="layer-info" class="info-popup">Опис шару</div>
+<div class="ui-wrapper">
+    <a href="#" id="explore-btn" class="explore-btn" target="_blank">
+        <span id="explore-text">Дослідити</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+    </a>
 
-<div class="controls" id="controls-box">
-    </div>
+    <div class="controls" id="controls-box"></div>
+</div>
 
 <script>
-    mapboxgl.accessToken = 'pk.eyJ1IjoibHZpdiIsImEiOiJjbWl4MXQ0dG4wMmRoM2VzNzZvMzlmODVmIn0.FpjKdCBZR8neb-2imEu-xA'; // Ваш токен
+    mapboxgl.accessToken = 'pk.eyJ1IjoibHZpdiIsImEiOiJjbWl4MXQ0dG4wMmRoM2VzNzZvMzlmODVmIn0.FpjKdCBZR8neb-2imEu-xA';
 
     const isMobile = window.innerWidth < 768;
     
-    // --- НАЛАШТУВАННЯ 9 ШАРІВ ---
-    // Тут ви задаєте: id, назву кнопки, колір "неону", файл даних та текст опису
+    // --- КОНФІГУРАЦІЯ ШАРІВ ---
     const layersConfig = [
-        { id: 'l1', name: 'Надвисокий', color: '#FFD700', file: './ultra.geojson', text: 'Тепле золото (2200K). Паркові алеї.' },
-        { id: 'l2', name: 'Політехнічний', color: '#FFB900', file: './poli.geojson', text: 'Бурштин (2400K). Пішохідні доріжки.' },
-        { id: 'l3', name: 'Ринковий', color: '#FF8C00', file: './runok.geojson', text: 'Насичений оранж. Акцентне підсвічування.' },
-        { id: 'l4', name: 'Оперний', color: '#FF6D00', file: './opera.geojson', text: 'Вечірній захід сонця. Історичні фасади.' },
-        { id: 'l5', name: 'Франца', color: '#FF4500', file: './fran.geojson', text: 'Червоне тепло. Сигнальні вогні.' },
-        { id: 'l6', name: 'Парковий', color: '#FF6E40', file: './park.geojson', text: 'М’який корал. Житлові квартали.' },
-        { id: 'l7', name: 'Потоцький', color: '#FFAB40', file: './potocki.geojson', text: 'Світлий оранж. Площі міста.' },
-        { id: 'l8', name: 'Стометровий', color: '#FFC400', file: './sto.geojson', text: 'Яскравий жовтий. Магістральні розв’язки.' },
+        { 
+            id: 'l1', name: 'Ринковий', color: '#FF8C00', file: './runok.geojson', 
+            text: 'Насичений оранж. Акцентне підсвічування.', 
+            pitch: 30, bearing: 0,
+            url: 'https://www.pidsvitu.com/runok' 
+        },
+        { 
+            id: 'l2', name: 'Парковий', color: '#FF6E40', file: './park.geojson', 
+            text: 'М’який корал. Житлові квартали.', 
+            pitch: 50, bearing: 10,
+            url: 'https://www.pidsvitu.com/park' 
+        },
+        { 
+            id: 'l3', name: 'Надвисокий', color: '#FFD700', file: './ultra.geojson', 
+            text: 'Тепле золото (2200K). Паркові алеї.', 
+            pitch: 10,  bearing: 15,
+            url: 'https://www.pidsvitu.com/ultrahight' 
+        },
+        { 
+            id: 'l4', name: 'Стометровий', color: '#FFC400', file: './sto.geojson', 
+            text: 'Яскравий жовтий. Магістральні розв’язки.', 
+            pitch: 40, bearing: 10,
+            url: 'https://www.pidsvitu.com/stomerovui' 
+        },
+        { 
+            id: 'l5', name: 'Оперний', color: '#FF6D00', file: './opera.geojson', 
+            text: 'Вечірній захід сонця. Історичні фасади.', 
+            pitch: 50, bearing: -15,
+            url: 'https://www.pidsvitu.com/opera' 
+        },
+        { 
+            id: 'l6', name: 'Політехнічний', color: '#FFB900', file: './poli.geojson', 
+            text: 'Бурштин (2400K). Пішохідні доріжки.', 
+            pitch: 50, bearing: -20,
+            url: 'https://www.pidsvitu.com/polytechnic' 
+        },
+        { 
+            id: 'l7', name: 'Франца', color: '#FF4500', file: './fran.geojson', 
+            text: 'Червоне тепло. Сигнальні вогні.', 
+            pitch: 40, bearing: 130,
+            url: 'https://www.pidsvitu.com/history' 
+        },
+        { 
+            id: 'l8', name: 'Потоцький', color: '#FFAB40', file: './potocki.geojson', 
+            text: 'Світлий оранж. Площі міста.', 
+            pitch: 40, bearing: 100,
+            url: 'https://www.pidsvitu.com/potocki' 
+        },
     ];
 
-    // Генерація кнопок в HTML
+    // Генерація кнопок
     const controlsContainer = document.getElementById('controls-box');
     layersConfig.forEach((layer, index) => {
         const btn = document.createElement('button');
@@ -185,144 +257,102 @@
         controlsContainer.appendChild(btn);
     });
 
-    const lvivBounds = [
-    [23.9200, 49.7600], // Південний захід (десь біля Сокільників/Скнилова)
-    [24.1200, 49.9000]  // Північний схід (десь біля Дублян/Малехова)
-];
+    const lvivBounds = [[23.9200, 49.7600], [24.1200, 49.9000]];
 
-const map = new mapboxgl.Map({
-    container: 'map',
-    style: { 
-        "version": 8, 
-        "name": "Dark", 
-        "sources": {}, 
-        "layers": [{ "id": "bg", "type": "background", "paint": { "background-color": "#050505" } }] 
-    },
-    center: [24.0311, 49.8329],
-    zoom: isMobile ? 12 : 13.5,
-    pitch: isMobile ? 40 : 50,
-    bearing: 0,
-    antialias: true,
-    
-    // ДОДАЄМО ОБМЕЖЕННЯ ТУТ:
-    maxBounds: lvivBounds 
-});
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: { 
+            "version": 8, "name": "Dark", "sources": {}, 
+            "layers": [{ "id": "bg", "type": "background", "paint": { "background-color": "#050505" } }] 
+        },
+        center: [24.0311, 49.8329],
+        zoom: isMobile ? 12 : 13.5,
+        pitch: isMobile ? 40 : 50,
+        bearing: 0,
+        antialias: true,
+        maxBounds: lvivBounds 
+    });
 
+    // --- ЗАВАНТАЖЕННЯ ДАНИХ (ПОВЕРНУТО) ---
     map.on('load', () => {
+        // Фонові шари
+        map.addSource('bg-roads', { type: 'geojson', data: './roads.json.geojson' });
+        map.addLayer({ 'id': 'bg-roads-layer', 'type': 'line', 'source': 'bg-roads', 'paint': { 'line-color': '#1a1a1a', 'line-width': isMobile ? 1 : 2, 'line-opacity': 0.6 } });
+
+        map.addSource('bg-buildings', { type: 'geojson', data: './historical2.geojson' });
+        map.addLayer({ 'id': 'bg-buildings-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings', 'paint': { 'fill-extrusion-color': '#111', 'fill-extrusion-height': 15, 'fill-extrusion-opacity': 0.8 } });
         
-        // --- 1. ФОНОВІ ШАРИ (ТЕМНІ, НЕАКТИВНІ) ---
-        // Дороги (темно-сірі лінії)
-        map.addSource('bg-roads', { type: 'geojson', data: './roads.json.geojson' }); // Ваш файл доріг
-        map.addLayer({
-            'id': 'bg-roads-layer', 'type': 'line', 'source': 'bg-roads',
-            'paint': { 
-                'line-color': '#1a1a1a', // Дуже темний сірий
-                'line-width': isMobile ? 1 : 2, 
-                'line-opacity': 0.6 
-            }
-        });
+        map.addSource('bg-buildings2', { type: 'geojson', data: './historical3.geojson' });
+        map.addLayer({ 'id': 'bg-buildings2-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings2', 'paint': { 'fill-extrusion-color': '#111', 'fill-extrusion-height': 15, 'fill-extrusion-opacity': 0.8 } });
 
-        // Будинки (темні силуети)
-        map.addSource('bg-buildings', { type: 'geojson', data: './historical2.geojson' }); // Ваш файл будинків
-        map.addLayer({
-            'id': 'bg-buildings-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings',
-            'paint': {
-                'fill-extrusion-color': '#111', // Майже чорний
-                'fill-extrusion-height': 15,    // Висота є, але вона "в тіні"
-                'fill-extrusion-opacity': 0.8
-            }
-        });
-        map.addSource('bg-buildings2', { type: 'geojson', data: './historical3.geojson' }); // Ваш файл будинків
-        map.addLayer({
-            'id': 'bg-buildings2-layer', 'type': 'fill-extrusion', 'source': 'bg-buildings2',
-            'paint': {
-                'fill-extrusion-color': '#111', // Майже чорний
-                'fill-extrusion-height': 15,    // Висота є, але вона "в тіні"
-                'fill-extrusion-opacity': 0.8
-            }
-        });
-
-        // --- 2. ШАРИ ТОЧОК (НЕОН) ---
+        // Шари точок
         layersConfig.forEach(layer => {
             map.addSource(layer.id, { type: 'geojson', data: layer.file });
-            
             map.addLayer({
-                'id': layer.id,
-                'type': 'circle',
-                'source': layer.id,
+                'id': layer.id, 'type': 'circle', 'source': layer.id,
                 'paint': {
-                    // Базовий радіус (неактивний = малий)
-                    'circle-radius': 3,
-                    // Базовий колір (неактивний = сірий або тьмяний версія кольору)
-                    'circle-color': '#333',
-                    // Прозорість
-                    'circle-opacity': 0.4,
-                    // Розмиття (неактивний = чіткий)
-                    'circle-blur': 0,
-                    
-                    // Анімація переходу
-                    'circle-radius-transition': { duration: 500 },
-                    'circle-color-transition': { duration: 500 },
-                    'circle-blur-transition': { duration: 500 },
-                    'circle-opacity-transition': { duration: 500 }
+                    'circle-radius': 3, 'circle-color': '#333', 'circle-opacity': 0.4, 'circle-blur': 0,
+                    'circle-radius-transition': { duration: 500 }, 'circle-color-transition': { duration: 500 },
+                    'circle-blur-transition': { duration: 500 }, 'circle-opacity-transition': { duration: 500 }
                 }
             });
         });
 
-        // Світло для 3D будинків
         map.setLight({ anchor: 'viewport', color: '#fff', intensity: 0.2, position: [1.15, 210, 30] });
     });
 
+    // --- ФУНКЦІЯ АКТИВАЦІЇ (ПОВЕРНУТО ЛОГІКУ) ---
     function activateLayer(selectedIndex) {
-        const infoPopup = document.getElementById('layer-info');
-        const buttons = document.querySelectorAll('.layer-btn');
         const selectedConfig = layersConfig[selectedIndex];
+        const buttons = document.querySelectorAll('.layer-btn');
+        const exploreBtn = document.getElementById('explore-btn');
+        const exploreText = document.getElementById('explore-text');
 
         // 1. Оновлюємо кнопки
         buttons.forEach((btn, idx) => {
-            if (idx === selectedIndex) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            if (idx === selectedIndex) btn.classList.add('active');
+            else btn.classList.remove('active');
         });
 
-        // 2. Оновлюємо текст (плавна поява)
-        /*infoPopup.classList.remove('visible');
-        setTimeout(() => {
-            infoPopup.textContent = selectedConfig.text;
-            infoPopup.style.display = 'block';
-            
-            // Адаптація ширини попапа під ширину кнопок
-            const controlsBox = document.getElementById('controls-box');
-            if(controlsBox) infoPopup.style.maxWidth = controlsBox.offsetWidth + 'px';
-
-            setTimeout(() => infoPopup.classList.add('visible'), 10);
-        }, 200);
-*/
-        // 3. Логіка "НЕОНУ"
+        // 2. Оновлюємо карту
         layersConfig.forEach((layer, index) => {
             if (index === selectedIndex) {
-                // АКТИВНИЙ ШАР:
-                // Великий радіус + розмиття = ефект світіння (glow)
                 map.setPaintProperty(layer.id, 'circle-radius', isMobile ? 8 : 12); 
-                map.setPaintProperty(layer.id, 'circle-color', layer.color); // Яскравий колір
+                map.setPaintProperty(layer.id, 'circle-color', layer.color);
                 map.setPaintProperty(layer.id, 'circle-opacity', 1);
-                map.setPaintProperty(layer.id, 'circle-blur', 0.5); // 0.5 = 50% розмиття країв (м'яке світло)
+                map.setPaintProperty(layer.id, 'circle-blur', 0.5);
             } else {
-                // НЕАКТИВНІ ШАРИ:
-                // Маленькі, темні, чіткі
                 map.setPaintProperty(layer.id, 'circle-radius', 3);
                 map.setPaintProperty(layer.id, 'circle-color', '#333');
                 map.setPaintProperty(layer.id, 'circle-opacity', 0.3);
                 map.setPaintProperty(layer.id, 'circle-blur', 0);
             }
         });
-    }
 
+        // 3. Камера
+        fetch(selectedConfig.file)
+            .then(response => response.json())
+            .then(data => {
+                const bounds = turf.bbox(data);
+                map.fitBounds(bounds, {
+                    padding: isMobile 
+                        ? { top: 100, bottom: 250, left: 30, right: 30 }
+                        : { top: 100, bottom: 150, left: 100, right: 100 },
+                    maxZoom: 16, 
+                    speed: 1.2, 
+                    curve: 1,
+                    pitch: (selectedConfig.pitch !== undefined) ? selectedConfig.pitch : 60,
+                    bearing: (selectedConfig.bearing !== undefined) ? selectedConfig.bearing : 0
+                });
+            })
+            .catch(error => console.error(error));
+
+        // 4. Оновлення кнопки "Дослідити"
+        exploreText.innerText = `ДОСЛІДИТИ ${selectedConfig.name} ЛІХТАР`;
+        exploreBtn.href = selectedConfig.url; 
+        exploreBtn.classList.add('visible');
+    }
 </script>
 
 </body>
-
 </html>
-
