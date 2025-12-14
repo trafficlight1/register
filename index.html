@@ -1,13 +1,19 @@
-<!DOCTYPE html>
-<html>
 <head>
     <meta charset="utf-8">
     <title>Підсвітити ліхтар</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
+    <link rel="icon" type="image/png" href="logo2.png">
+    <link rel="apple-touch-icon" href="logo2.png"> <meta property="og:title" content="Підсвітити ліхтар">
+    <meta property="og:description" content="Карта найцінніших ліхтарів Львова">
+    <meta property="og:image" content="fnaf.jpg"> 
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-    
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,15 +60,15 @@
         /* --- НОВИЙ КОНТЕЙНЕР ІНТЕРФЕЙСУ --- */
         .ui-wrapper {
             position: absolute;
-            bottom: 30px; /* Відступ від низу екрану */
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            flex-direction: column; /* Вертикальне вирівнювання */
+            flex-direction: column;
             align-items: center;
             width: 100%;
             z-index: 20;
-            pointer-events: none; /* Пропускаємо кліки крізь пусте місце на карту */
+            pointer-events: none;
         }
 
         /* --- КНОПКА "ДОСЛІДИТИ" --- */
@@ -81,9 +87,9 @@
             letter-spacing: 0.5px;
             
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            pointer-events: auto; /* Вмикаємо кліки */
+            pointer-events: auto; 
             
-            margin-bottom: 10px; /* Відступ до кнопок шарів */
+            margin-bottom: 10px; 
             
             opacity: 0;
             visibility: hidden;
@@ -118,7 +124,7 @@
             width: fit-content;
             max-width: 95%;
             display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
-            pointer-events: auto; /* Вмикаємо кліки */
+            pointer-events: auto;
         }
 
         .layer-btn {
@@ -356,6 +362,7 @@
 
 </body>
 </html>
+
 
 
 
