@@ -201,6 +201,11 @@
 
     const isMobile = window.innerWidth < 768;
     
+    // --- ЗМІННІ ДЛЯ ОБЕРТАННЯ (НОВЕ) ---
+    let rotationTimer;       // Таймер очікування 5 секунд
+    let animationFrameId;    // ID анімації для її зупинки
+    let isRotating = false;  // Чи йде зараз обертання
+
     // --- КОНФІГУРАЦІЯ ШАРІВ ---
     const layersConfig = [
         { 
@@ -279,7 +284,6 @@
         maxBounds: lvivBounds 
     });
 
-    // --- ЗАВАНТАЖЕННЯ ДАНИХ (ПОВЕРНУТО) ---
     map.on('load', () => {
         // Фонові шари
         map.addSource('bg-roads', { type: 'geojson', data: './roads.json.geojson' });
@@ -307,20 +311,65 @@
         map.setLight({ anchor: 'viewport', color: '#fff', intensity: 0.2, position: [1.15, 210, 30] });
     });
 
-    // --- ФУНКЦІЯ АКТИВАЦІЇ (ПОВЕРНУТО ЛОГІКУ) ---
+    // --- ЛОГІКА ОБЕРТАННЯ (НОВЕ) ---
+    
+    // Функція, яка запускає анімацію кадру
+    function rotateCamera() {
+        if (!isRotating) return;
+        
+        // Збільшуємо bearing на невелику величину кожного кадру (швидкість обертання)
+        // 0.05 - дуже повільно, 0.2 - швидше
+        const currentBearing = map.getBearing();
+        map.setBearing(currentBearing + 0.1); 
+
+        animationFrameId = requestAnimationFrame(rotateCamera);
+    }
+
+    // Зупинка обертання при взаємодії користувача
+    function stopRotation() {
+        // Скасовуємо таймер запуску (якщо він ще тікає)
+        if (rotationTimer) clearTimeout(rotationTimer);
+        
+        // Зупиняємо анімацію (якщо вона вже йде)
+        if (isRotating) {
+            isRotating = false;
+            cancelAnimationFrame(animationFrameId);
+        }
+    }
+
+    // Запускаємо таймер очікування
+    function startInactivityTimer() {
+        stopRotation(); // Скидаємо все попереднє
+        
+        rotationTimer = setTimeout(() => {
+            isRotating = true;
+            rotateCamera();
+        }, 5000); // 5000 мс = 5 секунд
+    }
+
+    // Слухачі подій: якщо користувач чіпає карту, зупиняємо все
+    map.on('mousedown', stopRotation);
+    map.on('touchstart', stopRotation);
+    map.on('wheel', stopRotation);
+    map.on('dragstart', stopRotation);
+
+    // --- ФУНКЦІЯ АКТИВАЦІЇ ---
     function activateLayer(selectedIndex) {
+        // 1. При кліку на кнопку спочатку зупиняємо старе обертання і запускаємо таймер
+        startInactivityTimer();
+
         const selectedConfig = layersConfig[selectedIndex];
         const buttons = document.querySelectorAll('.layer-btn');
         const exploreBtn = document.getElementById('explore-btn');
         const exploreText = document.getElementById('explore-text');
 
-        // 1. Оновлюємо кнопки
+        // Оновлюємо кнопки
         buttons.forEach((btn, idx) => {
             if (idx === selectedIndex) btn.classList.add('active');
             else btn.classList.remove('active');
         });
 
-        // 2. Оновлюємо карту
+        // Оновлюємо карту
         layersConfig.forEach((layer, index) => {
             if (index === selectedIndex) {
                 map.setPaintProperty(layer.id, 'circle-radius', isMobile ? 8 : 12); 
@@ -335,7 +384,7 @@
             }
         });
 
-        // 3. Камера
+        // Камера
         fetch(selectedConfig.file)
             .then(response => response.json())
             .then(data => {
@@ -353,7 +402,7 @@
             })
             .catch(error => console.error(error));
 
-        // 4. Оновлення кнопки "Дослідити"
+        // Оновлення кнопки "Дослідити"
         exploreText.innerText = `ДОСЛІДИТИ ${selectedConfig.name} ЛІХТАР`;
         exploreBtn.href = selectedConfig.url; 
         exploreBtn.classList.add('visible');
@@ -362,6 +411,7 @@
 
 </body>
 </html>
+
 
 
 
